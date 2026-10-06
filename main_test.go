@@ -9,11 +9,11 @@ import (
 )
 
 func TestAllowList(t *testing.T) {
-	a, err := ParseAllowList("120363414289885745@g.us, +44 7700 900123")
+	a, err := ParseAllowList("120363000000000001@g.us, +44 7700 900123")
 	if err != nil {
 		t.Fatal(err)
 	}
-	group, _ := types.ParseJID("120363414289885745@g.us")
+	group, _ := types.ParseJID("120363000000000001@g.us")
 	if !a.Allows(group) || !a.Allows(types.NewJID("447700900123", types.DefaultUserServer)) {
 		t.Fatal("expected listed chats to be allowed")
 	}
