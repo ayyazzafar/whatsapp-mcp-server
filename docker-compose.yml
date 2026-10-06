@@ -1,0 +1,14 @@
+services:
+  whatsapp-mcp:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8080:8080"   # put a TLS reverse proxy (Caddy, Traefik) in front
+    volumes:
+      - whatsapp-data:/data
+    healthcheck:
+      test: ["CMD", "/whatsapp-mcp-server", "-healthcheck"]
+      interval: 30s
+volumes:
+  whatsapp-data:
