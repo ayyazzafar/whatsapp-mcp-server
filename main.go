@@ -49,6 +49,10 @@ func main() {
 		log.Error("whatsapp setup failed", "err", err)
 		os.Exit(1)
 	}
+	if cfg.Trigger.URL != "" {
+		wa.trig = NewTrigger(cfg.Trigger, st, log)
+		log.Info("triggers on", "chats", cfg.Trigger.Chats.String(), "from", cfg.Trigger.From.String(), "delay", cfg.Trigger.Delay, "format", cfg.Trigger.Format)
+	}
 	if err := wa.Start(ctx); err != nil {
 		log.Error("whatsapp connect failed", "err", err)
 		os.Exit(1)

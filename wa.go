@@ -32,6 +32,7 @@ type WA struct {
 	st    *Store
 	log   *slog.Logger
 	names sync.Map // group JIDs whose names were already fetched
+	trig  *Trigger // nil when triggers are off
 
 	mu       sync.Mutex
 	qrCode   string // current QR payload while unlinked
@@ -152,7 +153,7 @@ func (w *WA) handle(raw any) {
 	ctx := context.Background()
 	switch evt := raw.(type) {
 	case *events.Message:
-		w.storeMessage(ctx, evt)
+		w.storeMessage(ctx, evt, true)
 	case *events.HistorySync:
 		for _, conv := range evt.Data.GetConversations() {
 			chat, err := types.ParseJID(conv.GetID())
@@ -161,7 +162,7 @@ func (w *WA) handle(raw any) {
 			}
 			for _, hm := range conv.GetMessages() {
 				if m, err := w.cli.ParseWebMessage(chat, hm.GetMessage()); err == nil {
-					w.storeMessage(ctx, m)
+					w.storeMessage(ctx, m, false)
 				}
 			}
 		}
@@ -177,7 +178,8 @@ func (w *WA) handle(raw any) {
 	}
 }
 
-func (w *WA) storeMessage(ctx context.Context, evt *events.Message) {
+// live is false for history sync, which must never trigger anything.
+func (w *WA) storeMessage(ctx context.Context, evt *events.Message, live bool) {
 	chat := w.normalize(ctx, evt.Info.Chat)
 	if !w.cfg.ReadAllow.Allows(chat) || evt.Message == nil {
 		return
@@ -196,6 +198,9 @@ func (w *WA) storeMessage(ctx context.Context, evt *events.Message) {
 	if err := w.st.SaveMessage(ctx, m); err != nil {
 		w.log.Error("store message", "err", err)
 		return
+	}
+	if live {
+		w.trig.Observe(chat, sender, evt.Info.IsFromMe, evt.Info.Timestamp)
 	}
 	if chat.Server == types.GroupServer {
 		w.ensureGroupName(ctx, chat)
