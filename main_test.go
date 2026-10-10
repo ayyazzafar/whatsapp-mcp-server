@@ -2,8 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"log/slog"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"go.mau.fi/whatsmeow/types"
 )
@@ -86,4 +91,67 @@ func TestStoreSQLite(t *testing.T) {
 	if j, _ := st.FindChatByName(ctx, "team"); j != "1@g.us" {
 		t.Fatalf("find by name: %q", j)
 	}
+}
+
+func TestTrigger(t *testing.T) {
+	ctx := context.Background()
+	db, dialect, err := OpenDB(filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := NewStore(ctx, db, dialect)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chats, _ := ParseAllowList("120363000000000001@g.us")
+	from, _ := ParseAllowList("447700900123")
+	chat, _ := types.ParseJID("120363000000000001@g.us")
+	owner := types.NewJID("447700900123", types.DefaultUserServer)
+	other := types.NewJID("15550001111", types.DefaultUserServer)
+	me := types.NewJID("15550002222", types.DefaultUserServer)
+
+	fired := make(chan string, 4)
+	newTrig := func() *Trigger {
+		tr := NewTrigger(TriggerConfig{Format: "claude-routine", Chats: chats, From: from, Delay: 50 * time.Millisecond, PerHour: 5}, st, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		tr.post = func(_ context.Context, body []byte) error { fired <- string(body); return nil }
+		return tr
+	}
+	n := 0
+	say := func(tr *Trigger, sender types.JID, fromMe bool, text string, at time.Time) {
+		n++
+		_ = st.SaveMessage(ctx, &StoredMessage{ChatJID: chat.String(), ID: fmt.Sprint("m", n), SenderJID: sender.String(), FromMe: fromMe, Text: text, ts: at.Unix()})
+		tr.Observe(chat, sender, fromMe, at)
+	}
+	expect := func(want bool, label string) {
+		select {
+		case body := <-fired:
+			if !want {
+				t.Fatalf("%s: unexpected fire %s", label, body)
+			}
+			if !strings.Contains(body, "NEW") || !strings.Contains(body, "hello claude") {
+				t.Fatalf("%s: payload missing new message: %s", label, body)
+			}
+		case <-time.After(200 * time.Millisecond):
+			if want {
+				t.Fatalf("%s: did not fire", label)
+			}
+		}
+	}
+
+	tr := newTrig()
+	say(tr, owner, false, "hello claude", time.Now())
+	expect(true, "unanswered owner message")
+
+	tr = newTrig()
+	say(tr, owner, false, "hello claude again", time.Now().Add(time.Second))
+	say(tr, me, true, "answered from the desktop", time.Now().Add(2*time.Second))
+	expect(false, "answered by another device")
+
+	tr = newTrig()
+	say(tr, other, false, "hello claude from someone else", time.Now().Add(3*time.Second))
+	expect(false, "sender not allowed")
+
+	tr = newTrig()
+	say(tr, owner, false, "hello claude, old backlog", time.Now().Add(-time.Hour))
+	expect(false, "old backlog message")
 }

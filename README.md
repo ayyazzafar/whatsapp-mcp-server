@@ -65,6 +65,16 @@ After linking, `/admin` lists your groups with their JIDs, so you can fill in th
 claude mcp add --transport http whatsapp https://<your-domain>/mcp --header "Authorization: Bearer $API_TOKEN"
 ```
 
+## Triggers: wake an agent when you write
+
+The server can call a webhook when a chosen person writes in a chosen chat and nobody answers. It is built for [Claude Code routines](https://code.claude.com/docs/en/routines) with an API trigger, but any HTTPS endpoint works.
+
+- Only senders in `TRIGGER_FROM` and chats in `TRIGGER_CHATS` count. Both must be specific (no `*`), and every trigger chat must also be in `WA_READ_ALLOW`.
+- It waits `TRIGGER_DELAY_SECONDS` (default 90). If any other device on the same WhatsApp account replies in that time, for example a desktop agent, nothing is sent. So this server can act as a fallback responder.
+- Several messages in a row become one call. History sync and backlog older than 10 minutes never trigger.
+- `TRIGGER_FORMAT=claude-routine` sends the last 20 messages as text, with the unanswered ones marked `NEW`. The routine's prompt should say it may act on that text, then reply with `send_message`.
+- Calls are capped by `TRIGGER_PER_HOUR` (default 20; Claude routines allow 30 an hour).
+
 ## Configuration
 
 | Variable | Default | Notes |
@@ -82,6 +92,11 @@ claude mcp add --transport http whatsapp https://<your-domain>/mcp --header "Aut
 | `OAUTH_REDIRECT_HOSTS` | `claude.ai,claude.com,localhost,127.0.0.1` | Hosts OAuth clients may redirect to |
 | `LISTEN_ADDR` | `:8080` | |
 | `LOG_LEVEL` | `INFO` | `DEBUG` for whatsmeow detail |
+| `TRIGGER_URL`, `TRIGGER_TOKEN` | — | Webhook to call (see Triggers) and its bearer token |
+| `TRIGGER_CHATS`, `TRIGGER_FROM` | — | Chats and senders that can trigger |
+| `TRIGGER_FORMAT` | `json` | `json` or `claude-routine` |
+| `TRIGGER_DELAY_SECONDS` | `90` | Wait for a reply from another device first |
+| `TRIGGER_PER_HOUR` | `20` | Max webhook calls per hour |
 
 ## Security model
 

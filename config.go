@@ -21,11 +21,12 @@ type Config struct {
 	SendAllow AllowList // chats the server may send to
 	ReadAllow AllowList // chats whose messages are stored and readable
 
-	SendPerHour   int      // global send rate limit
-	PairPhone     string   // optional: link with a pairing code instead of QR
-	DeviceName    string   // shown in WhatsApp > Linked devices
-	RedirectHosts []string // hosts allowed as OAuth redirect targets
-	Discovery     bool     // expose list_groups (all groups the account is in)
+	SendPerHour   int           // global send rate limit
+	PairPhone     string        // optional: link with a pairing code instead of QR
+	DeviceName    string        // shown in WhatsApp > Linked devices
+	RedirectHosts []string      // hosts allowed as OAuth redirect targets
+	Discovery     bool          // expose list_groups (all groups the account is in)
+	Trigger       TriggerConfig // optional webhook when someone writes and nobody replies
 	LogLevel      string
 }
 
@@ -76,6 +77,9 @@ func LoadConfig() (*Config, error) {
 	}
 	if c.APIToken != "" && len(c.APIToken) < 32 {
 		return nil, fmt.Errorf("API_TOKEN must be at least 32 characters (try: openssl rand -hex 32)")
+	}
+	if err := loadTriggerConfig(c); err != nil {
+		return nil, err
 	}
 	return c, nil
 }

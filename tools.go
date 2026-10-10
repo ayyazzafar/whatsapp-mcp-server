@@ -13,7 +13,7 @@ import (
 	"go.mau.fi/whatsmeow/types"
 )
 
-const version = "0.1.0"
+const version = "0.2.0"
 
 // RateLimiter is a sliding one-hour window shared by every send tool.
 type RateLimiter struct {
