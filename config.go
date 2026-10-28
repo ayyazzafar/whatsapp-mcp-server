@@ -26,6 +26,7 @@ type Config struct {
 	DeviceName    string   // shown in WhatsApp > Linked devices
 	RedirectHosts []string // hosts allowed as OAuth redirect targets
 	Discovery     bool     // expose list_groups (all groups the account is in)
+	Forward       Forward  // groups whose new messages are posted to FORWARD_URL
 	LogLevel      string
 }
 
@@ -54,6 +55,9 @@ func LoadConfig() (*Config, error) {
 	}
 	if c.ReadAllow, err = ParseAllowList(os.Getenv("WA_READ_ALLOW")); err != nil {
 		return nil, fmt.Errorf("WA_READ_ALLOW: %w", err)
+	}
+	if c.Forward, err = ParseForward(os.Getenv("WA_FORWARD"), env("FORWARD_URL", ""), os.Getenv("FORWARD_TOKEN")); err != nil {
+		return nil, fmt.Errorf("WA_FORWARD: %w", err)
 	}
 	if c.SendPerHour, err = strconv.Atoi(env("WA_SEND_PER_HOUR", "60")); err != nil || c.SendPerHour < 1 {
 		return nil, fmt.Errorf("WA_SEND_PER_HOUR must be a positive number")

@@ -153,6 +153,7 @@ func (w *WA) handle(raw any) {
 	switch evt := raw.(type) {
 	case *events.Message:
 		w.storeMessage(ctx, evt)
+		w.forward(ctx, evt)
 	case *events.HistorySync:
 		for _, conv := range evt.Data.GetConversations() {
 			chat, err := types.ParseJID(conv.GetID())

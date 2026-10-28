@@ -51,6 +51,10 @@ Open `https://<your-domain>/admin` (any username, your `ADMIN_PASSWORD`). On the
 
 After linking, `/admin` lists your groups with their JIDs, so you can fill in the allow-lists and redeploy.
 
+## Forward replies to a webhook (optional)
+
+Set `WA_FORWARD` to comma-separated `groupJID=label` pairs and `FORWARD_URL` (https) to have every new message in those groups POSTed as JSON (`project` = label, `chat`, `chat_name`, `sender_name`, `text`, `id`, `time`). `FORWARD_TOKEN`, if set, is sent as `Authorization: Bearer`. Only live messages from other people are forwarded: never history, never the server's own sends. Used to wake a Claude project when someone replies on the phone.
+
 ## Connect Claude
 
 **claude.ai / Claude Desktop:** Settings → Connectors → Add custom connector

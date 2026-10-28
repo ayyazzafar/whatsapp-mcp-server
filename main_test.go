@@ -87,3 +87,19 @@ func TestStoreSQLite(t *testing.T) {
 		t.Fatalf("find by name: %q", j)
 	}
 }
+
+func TestParseForward(t *testing.T) {
+	f, err := ParseForward("120363429243114546@g.us=ahead-of-the-curve, 120363411624982916@g.us=my-life", "https://bridge.example.com/ingest/whatsapp", "x")
+	if err != nil || f.Targets["120363429243114546@g.us"] != "ahead-of-the-curve" || f.Targets["120363411624982916@g.us"] != "my-life" {
+		t.Fatalf("got %v %v", f.Targets, err)
+	}
+	if _, err := ParseForward("447700900000@s.whatsapp.net=x", "https://a", ""); err == nil {
+		t.Fatal("non-group JID should be rejected")
+	}
+	if _, err := ParseForward("120363429243114546@g.us=x", "http://a", ""); err == nil {
+		t.Fatal("http URL should be rejected")
+	}
+	if f, err := ParseForward("", "", ""); err != nil || len(f.Targets) != 0 {
+		t.Fatal("empty should be off")
+	}
+}
