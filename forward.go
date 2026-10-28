@@ -17,13 +17,18 @@ import (
 // on the phone can wake whoever owns that group. Off unless WA_FORWARD and FORWARD_URL are set.
 type Forward struct {
 	Targets map[string]string // group JID -> label passed on as "project"
+	From    AllowList         // only these senders are forwarded (required)
 	URL     string
 	Token   string
 }
 
 // ParseForward reads WA_FORWARD: comma-separated "groupJID=label" pairs.
-func ParseForward(s, url, token string) (Forward, error) {
+func ParseForward(s, from, url, token string) (Forward, error) {
 	f := Forward{Targets: map[string]string{}, URL: url, Token: token}
+	var err error
+	if f.From, err = ParseAllowList(from); err != nil {
+		return f, fmt.Errorf("WA_FORWARD_FROM: %w", err)
+	}
 	for _, item := range strings.Split(s, ",") {
 		item = strings.TrimSpace(item)
 		if item == "" {
@@ -36,19 +41,25 @@ func ParseForward(s, url, token string) (Forward, error) {
 		}
 		f.Targets[jid.ToNonAD().String()] = strings.TrimSpace(label)
 	}
+	if len(f.Targets) > 0 && (f.From.Empty() || f.From.All) {
+		return f, fmt.Errorf("WA_FORWARD_FROM must list the sender numbers to forward when WA_FORWARD is set")
+	}
 	if len(f.Targets) > 0 && !strings.HasPrefix(f.URL, "https://") {
 		return f, fmt.Errorf("FORWARD_URL must be https when WA_FORWARD is set")
 	}
 	return f, nil
 }
 
-// forward posts one live message (never history, never our own) to the webhook in the background.
+// forward posts one live message from a listed sender (never history, never our own) to the webhook in the background.
 func (w *WA) forward(ctx context.Context, evt *events.Message) {
 	f := w.cfg.Forward
 	chat := w.normalize(ctx, evt.Info.Chat)
 	label, ok := f.Targets[chat.String()]
 	if !ok || evt.Info.IsFromMe || evt.Message == nil || time.Since(evt.Info.Timestamp) > 5*time.Minute {
 		return
+	}
+	if !f.From.Allows(w.normalize(ctx, evt.Info.Sender)) && (evt.Info.SenderAlt.IsEmpty() || !f.From.Allows(w.normalize(ctx, evt.Info.SenderAlt))) {
+		return // only the listed people (e.g. Ayyaz) can wake a project
 	}
 	text, media, filename := extractContent(evt.Message)
 	if text == "" && media != "" {

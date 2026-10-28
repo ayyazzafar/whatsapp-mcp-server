@@ -56,7 +56,7 @@ func LoadConfig() (*Config, error) {
 	if c.ReadAllow, err = ParseAllowList(os.Getenv("WA_READ_ALLOW")); err != nil {
 		return nil, fmt.Errorf("WA_READ_ALLOW: %w", err)
 	}
-	if c.Forward, err = ParseForward(os.Getenv("WA_FORWARD"), env("FORWARD_URL", ""), os.Getenv("FORWARD_TOKEN")); err != nil {
+	if c.Forward, err = ParseForward(os.Getenv("WA_FORWARD"), os.Getenv("WA_FORWARD_FROM"), env("FORWARD_URL", ""), os.Getenv("FORWARD_TOKEN")); err != nil {
 		return nil, fmt.Errorf("WA_FORWARD: %w", err)
 	}
 	if c.SendPerHour, err = strconv.Atoi(env("WA_SEND_PER_HOUR", "60")); err != nil || c.SendPerHour < 1 {
